@@ -1,23 +1,39 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"path/filepath"
 )
 
 func main() {
+	// Создаем новый флаг командной строки, значение по умолчанию: ":4000".
+	// Добавляем небольшую справку, объясняющая, что содержит данный флаг.
+	// Значение флага будет сохранено в переменной addr.
+	addr := flag.String("addr", ":4000", "Сетевой адрес HTTP")
+
+	// Мы вызываем функцию flag.Parse() для извлечения флага из командной строки.
+	// Она считывает значение флага из командной строки и присваивает его содержимое
+	// переменной. Вам нужно вызвать ее *до* использования переменной addr
+	// иначе она всегда будет содержать значение по умолчанию ":4000".
+	// Если есть ошибки во время извлечения данных - приложение будет остановлено.
+	flag.Parse()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", home)
 	mux.HandleFunc("/snippet", showSnippet)
 	mux.HandleFunc("/snippet/create", createSnippet)
 
-	fileServer := http.FileServer(neuteredFileSystem{http.Dir("./static")})
-	mux.Handle("/static", http.NotFoundHandler())
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
 	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
 
-	log.Println("Запуск сервера на http://127.0.0.1:4000")
-	err := http.ListenAndServe(":4000", mux)
+	// Значение, возвращаемое функцией flag.String(), является указателем на значение
+	// из флага, а не самим значением. Нам нужно убрать ссылку на указатель
+	// то есть перед использованием добавьте к нему префикс *. Обратите внимание, что мы используем
+	// функцию log.Printf() для записи логов в журнал работы нашего приложения.
+	log.Printf("Запуск сервера на %s", *addr)
+	err := http.ListenAndServe(*addr, mux)
 	log.Fatal(err)
 }
 
