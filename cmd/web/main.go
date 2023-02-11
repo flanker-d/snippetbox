@@ -3,21 +3,22 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"html/template" // Новый импорт
 	"log"
 	"net/http"
 	"os"
 
-	"github.com/flanker-d/snippetbox/pkg/models/mysql" // Новый импорт
-
+	"github.com/flanker-d/snippetbox/pkg/models/mysql"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Добавляем поле snippets в структуру application. Это позволит
-// сделать объект SnippetModel доступным для наших обработчиков.
+// Добавляем поле templateCache в структуру зависимостей. Это позволит
+// получить доступ к кэшу во всех обработчиках.
 type application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	snippets *mysql.SnippetModel
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -32,14 +33,21 @@ func main() {
 	if err != nil {
 		errorLog.Fatal(err)
 	}
-
 	defer db.Close()
 
-	// Инициализируем экземпляр mysql.SnippetModel и добавляем его в зависимостях.
+	// Инициализируем новый кэш шаблона...
+	templateCache, err := newTemplateCache("./ui/html/")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	// И добавляем его в зависимостях нашего
+	// веб-приложения.
 	app := &application{
-		errorLog: errorLog,
-		infoLog:  infoLog,
-		snippets: &mysql.SnippetModel{DB: db},
+		errorLog:      errorLog,
+		infoLog:       infoLog,
+		snippets:      &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	srv := &http.Server{
@@ -48,7 +56,7 @@ func main() {
 		Handler:  app.routes(),
 	}
 
-	infoLog.Printf("Запуск сервера на %s", *addr)
+	infoLog.Printf("Запуск сервера на http://127.0.0.1%s", *addr)
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
 }
