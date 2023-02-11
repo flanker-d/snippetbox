@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"net/http"
 	"strconv"
@@ -51,6 +52,11 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (app *application) newSnippet(w http.ResponseWriter, r *http.Request) {
+	// Используем помощника render() для отображения шаблона.
+	app.render(w, r, "new.page.tmpl", nil)
+}
+
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -58,9 +64,14 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Создаем несколько переменных, содержащих тестовые данные. Мы удалим их позже.
-	title := "История про улитку"
-	content := "Улитка выползла из раковины,\nвытянула рожки,\nи опять подобрала их."
+	err := r.ParseForm()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	title := strings.Join(r.Form["title"], "")
+	content := strings.Join(r.Form["content"], "")
 	expires := "7"
 
 	// Передаем данные в метод SnippetModel.Insert(), получая обратно
